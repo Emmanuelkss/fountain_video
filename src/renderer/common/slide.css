@@ -1,0 +1,75 @@
+/* Slide rendering shared by thumbnails, monitors and the projector. */
+.fv-slide {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  isolation: isolate;
+  contain: strict;
+  user-select: none;
+}
+
+.fv-media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.fv-cover { object-fit: cover; }
+.fv-contain { object-fit: contain; background: #000; }
+video.fv-media { object-fit: contain; background: #000; }
+video.fv-cover { object-fit: cover; }
+
+.fv-dim { position: absolute; inset: 0; background: #000; pointer-events: none; }
+
+.fv-textbox {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.fv-text {
+  white-space: pre-line;
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: manual;
+}
+.fv-title { font-weight: 700; line-height: 1.1; }
+.fv-verse {
+  font-size: 0.55em;
+  vertical-align: super;
+  line-height: 0;
+  opacity: 0.75;
+  margin-right: 0.15em;
+  font-weight: 600;
+}
+.fv-footer {
+  position: absolute;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+
+.fv-black {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  pointer-events: none;
+  transition: opacity 150ms linear;
+  z-index: 5;
+}
+
+.fv-badge {
+  position: absolute;
+  top: 6%;
+  right: 4%;
+  z-index: 6;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  font: 600 11px/1.2 "Segoe UI", system-ui, sans-serif;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+.fv-badge-warn { background: #b42318; }
+.fv-badge-dim { background: rgba(255, 255, 255, 0.15); }

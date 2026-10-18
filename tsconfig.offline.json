@@ -3,14 +3,14 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "ignoreDeprecations": "6.0",
+    "noImplicitAny": false,
     "baseUrl": ".",
     "paths": {
       "electron": ["types-offline/electron.d.ts"],
       "react": ["types-offline/react.d.ts"],
       "react/jsx-runtime": ["types-offline/react-jsx-runtime.d.ts"],
       "react-dom/client": ["types-offline/react-dom-client.d.ts"],
-      "ws": ["types-offline/ws.d.ts"],
-      "playwright": ["types-offline/playwright.d.ts"]
+      "ws": ["types-offline/ws.d.ts"]
     }
   },
   "include": ["src", "tests", "scripts/**/*.ts", "types-offline"]

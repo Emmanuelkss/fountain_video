@@ -41,7 +41,7 @@ import {
   type LiveState,
 } from '../shared/live';
 import { fallbackTheme } from '../shared/themes';
-import { errorMessage, newId, nowIso, UserError } from '../shared/util';
+import { displayFileName, errorMessage, newId, nowIso, UserError } from '../shared/util';
 
 /** Everything that needs the real desktop (windows, screens, file dialogs). */
 export interface Platform {
@@ -583,7 +583,7 @@ export class AppCore {
   reportMediaError(file: string, message: string): void {
     log.warn(`Media playback error for ${file}: ${message}`);
     this.emit('media:error', { path: file, message });
-    this.emit('notify', { level: 'error', message: `${path.basename(file)} cannot be played: ${message}` });
+    this.emit('notify', { level: 'error', message: `${displayFileName(file)} cannot be played: ${message}` });
   }
 
   notify(level: Events['notify']['level'], message: string): void {

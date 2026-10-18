@@ -112,3 +112,19 @@ test('shortcut combos', () => {
   assert.equal(sectionLabelForKey(ev('c')), 'C');
   assert.equal(sectionLabelForKey(ev('c', { ctrlKey: true })), null);
 });
+
+import { chooseOutputDisplay } from '../src/main/displays';
+
+test('projector display selection', () => {
+  const main = { id: 1, label: 'Main', primary: true, scaleFactor: 1, bounds: { x: 0, y: 0, width: 1920, height: 1080 } };
+  const projector = { id: 2, label: 'Projector', primary: false, scaleFactor: 1, bounds: { x: 1920, y: 0, width: 1280, height: 720 } };
+  const tv = { id: 3, label: 'TV', primary: false, scaleFactor: 1, bounds: { x: 3200, y: 0, width: 3840, height: 2160 } };
+  assert.equal(chooseOutputDisplay([main], null, false).windowed, true, 'single screen = test window');
+  assert.equal(chooseOutputDisplay([main, projector], null, false).display?.id, 2, 'auto picks the external screen');
+  assert.equal(chooseOutputDisplay([main, projector, tv], 3, false).display?.id, 3, 'honours the chosen screen');
+  const unplugged = chooseOutputDisplay([main, projector], 3, false);
+  assert.equal(unplugged.display?.id, 2);
+  assert.match(unplugged.message, /not connected/);
+  assert.equal(chooseOutputDisplay([main], 3, false).windowed, true, 'projector unplugged = window');
+  assert.equal(chooseOutputDisplay([main, projector], null, true).windowed, true, 'forced test mode');
+});

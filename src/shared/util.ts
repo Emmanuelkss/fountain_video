@@ -54,3 +54,8 @@ export class UserError extends Error {
     this.name = 'UserError';
   }
 }
+
+/** File name for display: library copies are stored as "<8 hex>-name.ext". */
+export function displayFileName(filePath: string): string {
+  return filePath.replace(/^.*[\\/]/, '').replace(/^[0-9a-f]{8}-/, '');
+}
