@@ -19,6 +19,9 @@ const distDir = path.join(__dirname, '..');
 const rendererDir = path.join(distDir, 'renderer');
 const preloadDir = path.join(distDir, 'preload');
 
+// Automated tests (and portable setups) can redirect where data is stored.
+if (process.env.FV_USER_DATA) app.setPath('userData', process.env.FV_USER_DATA);
+
 // The projector window never receives clicks, so videos must be allowed to start with sound.
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
@@ -62,19 +65,13 @@ function start(): void {
     closeOutput: () => output.close(),
     identifyDisplays: () => output.identify(),
     openFiles: async ({ title, filters, multiple }) => {
-      const result = await dialog.showOpenDialog(operator ?? undefined, {
-        title,
-        filters,
-        properties: multiple ? ['openFile', 'multiSelections'] : ['openFile'],
-      });
+      const options = { title, filters, properties: multiple ? (['openFile', 'multiSelections'] as const) : (['openFile'] as const) };
+      const result = operator ? await dialog.showOpenDialog(operator, { ...options, properties: [...options.properties] }) : await dialog.showOpenDialog({ ...options, properties: [...options.properties] });
       return result.canceled ? [] : result.filePaths;
     },
     saveFile: async ({ title, defaultName, filters }) => {
-      const result = await dialog.showSaveDialog(operator ?? undefined, {
-        title,
-        defaultPath: path.join(app.getPath('documents'), defaultName),
-        filters,
-      });
+      const options = { title, defaultPath: path.join(app.getPath('documents'), defaultName), filters };
+      const result = operator ? await dialog.showSaveDialog(operator, options) : await dialog.showSaveDialog(options);
       return result.canceled || !result.filePath ? null : result.filePath;
     },
     openPath: (target) => {
@@ -182,7 +179,7 @@ function start(): void {
     operator.on('close', (event) => {
       if (quitting) return;
       if (output.status().open) {
-        const choice = dialog.showMessageBoxSync(operator ?? undefined, {
+        const choice = dialog.showMessageBoxSync(operator!, {
           type: 'question',
           title: 'Quit FountainVideo?',
           message: 'The projector is still on.',

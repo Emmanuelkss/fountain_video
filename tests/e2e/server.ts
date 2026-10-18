@@ -100,8 +100,8 @@ export async function startHarness(dataDir: string, port = 0): Promise<Harness> 
       if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: 'event', name: event, payload }));
     });
     socket.on('close', off);
-    socket.on('message', async (data: Buffer) => {
-      const msg = JSON.parse(data.toString()) as { id: number; name: string; input: unknown };
+    socket.on('message', async (data) => {
+      const msg = JSON.parse(String(data)) as { id: number; name: string; input: unknown };
       try {
         let value: unknown;
         if (msg.name === '__outputReady') value = { state: core.liveState, mediaBase: platform.mediaBase };

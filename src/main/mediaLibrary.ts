@@ -34,7 +34,11 @@ export class MediaLibrary {
   }
 
   list(): MediaItem[] {
-    return this.repo.list().map((m) => ({ ...m, exists: fs.existsSync(m.path) }));
+    return this.repo.list().map((m) => {
+      // After a restore on another computer, files live in this computer's library folder.
+      const local = fs.existsSync(m.path) ? m.path : path.join(this.dir, path.basename(m.path.replace(/\\/g, '/')));
+      return { ...m, path: local, exists: fs.existsSync(local) };
+    });
   }
 
   async import(paths: string[]): Promise<ImportReport> {

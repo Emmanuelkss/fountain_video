@@ -131,6 +131,7 @@ test('service with every item type builds slides; missing media is reported', as
   assert.equal(byType.image!.slides[0]!.missing, false);
   assert.equal(byType.video!.slides[0]!.missing, true);
   assert.match(byType.video!.error ?? '', /not found/);
+  assert.deepEqual(await core.invoke('songs.usage', { id: songId }), ['Sunday 19 Oct'], 'delete warning lists the services using the song');
 });
 
 test('service survives a restart; live engine drives through it', async (t) => {
@@ -254,4 +255,25 @@ test('themes: built-ins are read-only, custom themes persist', async (t) => {
   const custom = await core.invoke('themes.save', { ...themes[0]!, id: '', name: 'Our Church', fontSize: 9999 });
   assert.equal(custom.fontSize, 300, 'clamped');
   assert.ok((await core.invoke('themes.list', undefined)).some((t) => t.id === custom.id));
+});
+
+test('media paths from another computer are found in the local library', async (t) => {
+  const core = new AppCore(dataDir, platform());
+  core.start();
+  t.after(() => core.shutdown());
+  const local = (await core.invoke('media.list', undefined))[0]!;
+  const foreign = `C:\\Users\\OtherPC\\AppData\\Roaming\\FountainVideo\\media\\${path.basename(local.path)}`;
+  const service = await core.invoke('services.save', {
+    id: '',
+    name: 'Moved',
+    date: '',
+    isTemplate: false,
+    notes: '',
+    createdAt: '',
+    updatedAt: '',
+    items: [{ id: newId(), type: 'image', title: 'Moved image', themeId: null, notes: '', path: foreign }],
+  });
+  const deck = await core.invoke('live.load', { serviceId: service.id });
+  assert.equal(deck.items[0]!.slides[0]!.missing, false);
+  assert.equal(deck.items[0]!.slides[0]!.mediaPath, local.path);
 });

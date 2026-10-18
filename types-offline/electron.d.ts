@@ -139,12 +139,14 @@ declare module 'electron' {
     extensions: string[];
   }
   const dialog: {
+    showOpenDialog(options: { title?: string; filters?: FileFilter[]; properties?: Array<'openFile' | 'multiSelections' | 'openDirectory'> }): Promise<{ canceled: boolean; filePaths: string[] }>;
     showOpenDialog(
-      window: BrowserWindow | undefined,
+      window: BrowserWindow,
       options: { title?: string; filters?: FileFilter[]; properties?: Array<'openFile' | 'multiSelections' | 'openDirectory'> },
     ): Promise<{ canceled: boolean; filePaths: string[] }>;
+    showSaveDialog(options: { title?: string; defaultPath?: string; filters?: FileFilter[] }): Promise<{ canceled: boolean; filePath?: string }>;
     showSaveDialog(
-      window: BrowserWindow | undefined,
+      window: BrowserWindow,
       options: { title?: string; defaultPath?: string; filters?: FileFilter[] },
     ): Promise<{ canceled: boolean; filePath?: string }>;
     showMessageBox(
@@ -152,7 +154,7 @@ declare module 'electron' {
       options: { type?: string; title?: string; message: string; detail?: string; buttons?: string[]; defaultId?: number; cancelId?: number },
     ): Promise<{ response: number }>;
     showMessageBoxSync(
-      window: BrowserWindow | undefined,
+      window: BrowserWindow,
       options: { type?: string; title?: string; message: string; detail?: string; buttons?: string[]; defaultId?: number; cancelId?: number },
     ): number;
     showErrorBox(title: string, content: string): void;
