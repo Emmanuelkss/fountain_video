@@ -1,0 +1,17 @@
+{
+  "//": "Used only in build sandboxes without network access: maps electron and react types to local stubs.",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
+    "paths": {
+      "electron": ["types-offline/electron.d.ts"],
+      "react": ["types-offline/react.d.ts"],
+      "react/jsx-runtime": ["types-offline/react-jsx-runtime.d.ts"],
+      "react-dom/client": ["types-offline/react-dom-client.d.ts"],
+      "ws": ["types-offline/ws.d.ts"],
+      "playwright": ["types-offline/playwright.d.ts"]
+    }
+  },
+  "include": ["src", "tests", "scripts/**/*.ts", "types-offline"]
+}
