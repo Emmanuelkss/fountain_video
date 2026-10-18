@@ -121,7 +121,11 @@ export class AppCore {
       if (existed && !db.integrityOk()) throw new Error('integrity check failed');
     } catch (err) {
       log.error('Database could not be opened', err);
-      db?.close();
+      try {
+        db?.close();
+      } catch {
+        // already closed
+      }
       db = this.recoverDatabase();
     }
     if (existed && db.schemaVersion < LATEST_SCHEMA_VERSION && db.schemaVersion > 0) {
