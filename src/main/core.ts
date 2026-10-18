@@ -17,7 +17,7 @@ import type {
   FileFilter,
   ImportReport,
 } from '../shared/api';
-import type { DisplayInfo, OutputStatus, Service, ServiceItem, Song, Theme } from '../shared/types';
+import type { DisplayInfo, OutputStatus, Service, ServiceItem, Slide, Song, Theme } from '../shared/types';
 import { Database } from './db/database';
 import { LATEST_SCHEMA_VERSION } from './db/migrations';
 import { SongsRepo } from './db/songsRepo';
@@ -531,7 +531,7 @@ export class AppCore {
         fallbackTheme(),
       mediaExists: (p) => {
         try {
-          return fs.existsSync(p);
+          return fs.existsSync(this.resolveMediaPath(p));
         } catch {
           return false;
         }
@@ -540,12 +540,31 @@ export class AppCore {
     };
   }
 
+  /**
+   * Media paths are stored as absolute paths. After restoring a backup on
+   * another computer (different user folder), a file that is missing at its
+   * old place is looked up by name in this computer's media library.
+   */
+  resolveMediaPath(file: string): string {
+    if (!file || fs.existsSync(file)) return file;
+    const candidate = path.join(this.media.directory, path.basename(file.replace(/\\/g, '/')));
+    return fs.existsSync(candidate) ? candidate : file;
+  }
+
   buildDeck(service: Service | null): Deck {
     if (!service) return { serviceId: null, serviceName: '', items: [] };
     const ctx = this.slideContext();
+    const relocate = (slide: Slide): Slide => {
+      const mediaPath = slide.mediaPath ? this.resolveMediaPath(slide.mediaPath) : null;
+      const bgPath = slide.theme.background.mediaPath;
+      const background = bgPath ? { ...slide.theme.background, mediaPath: this.resolveMediaPath(bgPath) } : slide.theme.background;
+      return { ...slide, mediaPath, theme: { ...slide.theme, background } };
+    };
     const items: DeckItem[] = service.items.map((item: ServiceItem) => {
       try {
-        const { slides, error } = buildItemSlides(item, ctx);
+        const built = buildItemSlides(item, ctx);
+        const slides = built.slides.map(relocate);
+        const error = built.error;
         return { itemId: item.id, type: item.type, title: item.title, slides, error };
       } catch (err) {
         log.error(`Could not build slides for item ${item.title}`, err);

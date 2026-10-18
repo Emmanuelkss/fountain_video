@@ -5,7 +5,7 @@ declare module 'ws' {
     readyState: number;
     send(data: string): void;
     close(): void;
-    on(event: 'message', listener: (data: Buffer) => void): this;
+    on(event: 'message', listener: (data: Buffer | ArrayBuffer | Buffer[]) => void): this;
     on(event: 'close', listener: () => void): this;
   }
   export class WebSocketServer {
