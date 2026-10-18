@@ -121,17 +121,21 @@
 | ID | Feature | What it does | How to use | Main code | Verified |
 | --- | --- | --- | --- | --- | --- |
 | I-01 | Reproducible build | An esbuild bundle (no dev server); the app loads local files only. | `npm run build` | `scripts/build.mjs` | Run here |
-| I-02 | Windows installer and portable exe | NSIS per-user installer (choose folder, Start menu and desktop shortcuts) plus a portable exe, with the app icon. Data is kept on update and uninstall. | `npm run dist` or `build-windows.bat` | `package.json` (`build`), `build/icon.*` | CI |
-| I-03 | GitHub Actions | On Windows: type check, tests, end-to-end, Electron smoke test, installer build, uploaded artifact; `v*` tags create a release. | Push to `dev`/`main`, or tag `v1.0.0`. | `.github/workflows/build.yml` | CI |
+| I-02 | Windows installer and portable exe | NSIS per-user installer (choose folder, Start menu and desktop shortcuts) plus a portable exe, with the app icon. Data is kept on update and uninstall. | `npm run dist` or `build-windows.bat` | `package.json` (`build`), `build/icon.*` | CI (built), Manual (install) |
+| I-03 | GitHub Actions | On Windows: type check, tests, end-to-end, Electron smoke test, installer build, uploaded artifact; `v*` tags create a release. | Push to `dev`/`main`, or tag `v1.0.0`. | `.github/workflows/build.yml` | CI (green) |
 | I-04 | First-launch experience | Welcome dialog with the 4-step Sunday workflow; starter hymns, Bible samples and a template. | First start. | `App.tsx`, `main/seed.ts` | U, E2E |
 
 ---
 
-## Test summary at this commit
+## Test summary
+
+The **Build & test** workflow ran on GitHub Actions, on Windows, on 2026-10-18 (run 39149752416). Every step was green:
 
 | Suite | Result |
 | --- | --- |
+| `npm run typecheck` (official Electron and React typings) | Pass |
 | `npm test` (unit + integration on real SQLite) | 37 / 37 pass |
-| `npm run test:e2e` (operator + projector pages in Chromium, real core) | Full scenario passes |
-| `npm run test:electron` | Written for CI on Windows. Not run in the build sandbox, which had no access to download Electron. |
+| `npm run test:e2e` (operator + projector pages in Chromium, real core) | Full church-service scenario passes |
+| `npm run test:electron` (real Electron app: projector window, `fvmedia://` image, restart persistence) | Pass |
+| `npm run dist` | Installer + portable exe built and uploaded as the `FountainVideo-windows` artifact |
 | Manual checks still needed on the church PC | D-01, D-02, D-04 to D-07 with the real projector; M-02 with your own MP4 files; R-08 |
