@@ -19,12 +19,18 @@ export class Database {
   constructor(path: string) {
     this.path = path;
     this.db = new DatabaseSync(path);
-    this.db.exec('PRAGMA foreign_keys = ON;');
-    if (path !== ':memory:') {
-      this.db.exec('PRAGMA journal_mode = WAL;');
+    try {
+      this.db.exec('PRAGMA foreign_keys = ON;');
+      if (path !== ':memory:') {
+        this.db.exec('PRAGMA journal_mode = WAL;');
+      }
+      this.db.exec('PRAGMA synchronous = FULL;');
+      this.db.exec('PRAGMA busy_timeout = 3000;');
+    } catch (err) {
+      // A damaged file fails here: release the handle so it can be moved aside (Windows locks open files).
+      this.db.close();
+      throw err;
     }
-    this.db.exec('PRAGMA synchronous = FULL;');
-    this.db.exec('PRAGMA busy_timeout = 3000;');
   }
 
   all<T = Row>(sql: string, ...params: SqlValue[]): T[] {
