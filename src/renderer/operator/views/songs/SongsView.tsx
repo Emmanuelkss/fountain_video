@@ -1,6 +1,6 @@
 /** Song library: search, categories, editor with live slide preview, import/export. */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { Song, SongSummary } from '../../../../shared/types';
+import type { Song, SongbookSummary, SongSummary } from '../../../../shared/types';
 import { mergeSectionIds, parseLyrics, parseOrder, serializeLyrics } from '../../../../shared/lyrics';
 import { songSlides } from '../../../../shared/slides';
 import { fallbackTheme } from '../../../../shared/themes';
@@ -53,6 +53,8 @@ function blankSong(): Song {
     key: '',
     notes: '',
     categories: [],
+    songbook: '',
+    songbookNumber: '',
     sections: [],
     arrangements: [],
     defaultArrangementId: null,
@@ -67,7 +69,13 @@ export function SongsView() {
   const confirm = useConfirm();
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('');
-  const [songs] = useData<SongSummary[]>(['songs'], () => api().invoke('songs.list', { query, category }), [query, category]);
+  const [songbook, setSongbook] = useState('');
+  const [songs] = useData<SongSummary[]>(['songs'], () => api().invoke('songs.list', { query, category, songbook }), [query, category, songbook]);
+  const [songbooks] = useData<SongbookSummary[]>(['songs'], () => api().invoke('songs.songbooks', undefined));
+  const [renaming, setRenaming] = useState(false);
+  useEffect(() => {
+    if (songbook && songbooks && !songbooks.some((b) => b.name === songbook)) setSongbook('');
+  }, [songbooks, songbook]);
   const [categories] = useData<string[]>(['songs'], () => api().invoke('songs.categories', undefined));
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -148,13 +156,21 @@ export function SongsView() {
   const importFiles = async () => {
     const paths = await call('dialog.openFiles', {
       title: 'Import songs',
-      filters: [{ name: 'Songs (FountainVideo JSON, OpenLyrics, text, ChordPro)', extensions: SONG_EXTS }],
+      filters: [
+        { name: 'Songs (VideoPsalm songbooks, FountainVideo JSON, OpenLyrics, text, ChordPro)', extensions: SONG_EXTS },
+        { name: 'VideoPsalm songbooks (.json, .vpc)', extensions: ['json', 'vpc'] },
+      ],
       multiple: true,
     });
     if (paths.length === 0) return;
+    toast('info', `Importing ${paths.length} file${paths.length === 1 ? '' : 's'}…`);
     const report = await call('songs.importFiles', { paths });
-    toast(report.imported ? 'success' : 'warn', `${report.imported} song${report.imported === 1 ? '' : 's'} imported${report.skipped ? `, ${report.skipped} skipped` : ''}`);
+    const parts = [`${report.imported} song${report.imported === 1 ? '' : 's'} imported`];
+    if (report.updated) parts.push(`${report.updated} updated`);
+    if (report.skipped) parts.push(`${report.skipped} skipped`);
+    toast(report.imported || report.updated ? 'success' : 'warn', parts.join(', '));
     report.errors.slice(0, 5).forEach((e) => toast('warn', e));
+    if (report.errors.length > 5) toast('warn', `…and ${report.errors.length - 5} more (see the log file)`);
   };
 
   const addToService = async () => {
@@ -172,6 +188,31 @@ export function SongsView() {
   const updateSong = (patch: Partial<Song>) => {
     setDraft((d) => (d ? { ...d, song: { ...d.song, ...patch } } : d));
     setDirty(true);
+  };
+
+  const removeSongbook = async () => {
+    const book = songbooks?.find((b) => b.name === songbook);
+    if (!book) return;
+    const ok = await confirm({
+      title: 'Delete songbook',
+      message: (
+        <>
+          Delete the songbook “{book.name}” and its {book.count} song{book.count === 1 ? '' : 's'}?
+          <p className="hint">Services that use these songs will show a warning. A backup is made every day; you can also back up now in Settings.</p>
+        </>
+      ),
+      confirmLabel: 'Delete songbook',
+      danger: true,
+    });
+    if (!ok) return;
+    const { count } = await call('songs.deleteSongbook', { name: book.name });
+    toast('success', `${count} song${count === 1 ? '' : 's'} deleted`);
+    setSongbook('');
+    if (draft?.song.songbook === book.name) {
+      setDraft(null);
+      setSelectedId(null);
+      setDirty(false);
+    }
   };
 
   const allCategories = useMemo(() => [...new Set([...DEFAULT_CATEGORIES, ...(categories ?? [])])], [categories]);
@@ -196,7 +237,27 @@ export function SongsView() {
           </div>
           <div className="search-box">
             <Icon name="search" />
-            <input ref={searchRef} placeholder="Search title, words, author…" value={query} onChange={(e) => setQuery(e.target.value)} data-testid="song-search" />
+            <input ref={searchRef} placeholder="Search title, words, author, number…" value={query} onChange={(e) => setQuery(e.target.value)} data-testid="song-search" />
+          </div>
+          <div className="row-gap">
+            <select className="grow" value={songbook} onChange={(e) => setSongbook(e.target.value)} aria-label="Songbook" data-testid="songbook-filter">
+              <option value="">All songbooks</option>
+              {(songbooks ?? []).map((b) => (
+                <option key={b.name} value={b.name}>
+                  {b.name} ({b.count})
+                </option>
+              ))}
+            </select>
+            {songbook && (
+              <>
+                <button className="btn-icon" title="Rename this songbook" onClick={() => setRenaming(true)}>
+                  <Icon name="edit" />
+                </button>
+                <button className="btn-icon" title="Delete this songbook and its songs" onClick={() => void removeSongbook()}>
+                  <Icon name="trash" />
+                </button>
+              </>
+            )}
           </div>
           <select value={category} onChange={(e) => setCategory(e.target.value)} aria-label="Category">
             <option value="">All categories</option>
@@ -211,7 +272,10 @@ export function SongsView() {
           {songs && songs.length === 0 && <Empty icon="songs" title={query || category ? 'No match' : 'No songs yet'} />}
           {songs?.map((s) => (
             <button key={s.id} className={`list-item ${s.id === selectedId ? 'selected' : ''}`} onClick={() => void select(s.id)}>
-              <strong>{s.title}</strong>
+              <strong>
+                {s.songbookNumber && <span className="song-number">{songbook ? s.songbookNumber : `${s.songbook} ${s.songbookNumber}`}</span>}
+                {s.title}
+              </strong>
               <span className="muted">{s.firstLine}</span>
             </button>
           ))}
@@ -224,6 +288,7 @@ export function SongsView() {
           draft={draft}
           dirty={dirty}
           categories={allCategories}
+          songbooks={(songbooks ?? []).map((b) => b.name)}
           update={update}
           updateSong={updateSong}
           onSave={() => void save()}
@@ -238,7 +303,17 @@ export function SongsView() {
           </Empty>
         </section>
       )}
-      {exporting && <ExportDialog onClose={() => setExporting(false)} selectedId={draft?.song.id || null} />}
+      {exporting && <ExportDialog onClose={() => setExporting(false)} selectedId={draft?.song.id || null} songbook={songbook} songbookIds={songbook ? (songs ?? []).map((s) => s.id) : []} />}
+      {renaming && songbook && (
+        <RenameSongbookDialog
+          name={songbook}
+          onClose={() => setRenaming(false)}
+          onRenamed={(to) => {
+            setSongbook(to);
+            setRenaming(false);
+          }}
+        />
+      )}
       {pasting && <PasteDialog onClose={() => setPasting(false)} onImported={(id) => void select(id)} />}
     </div>
   );
@@ -248,6 +323,7 @@ function SongEditor({
   draft,
   dirty,
   categories,
+  songbooks,
   update,
   updateSong,
   onSave,
@@ -258,6 +334,7 @@ function SongEditor({
   draft: Draft;
   dirty: boolean;
   categories: string[];
+  songbooks: string[];
   update: (patch: Partial<Draft>) => void;
   updateSong: (patch: Partial<Song>) => void;
   onSave: () => void;
@@ -329,6 +406,17 @@ function SongEditor({
             </Field>
             <Field label="CCLI song number">
               <input value={song.ccli} onChange={(e) => updateSong({ ccli: e.target.value })} />
+            </Field>
+            <Field label="Songbook (recueil)" hint="Songs with the same songbook are grouped, like a hymnal.">
+              <input list="songbook-names" value={song.songbook} onChange={(e) => updateSong({ songbook: e.target.value })} data-testid="song-songbook" />
+              <datalist id="songbook-names">
+                {songbooks.map((b) => (
+                  <option key={b} value={b} />
+                ))}
+              </datalist>
+            </Field>
+            <Field label="Number in the songbook">
+              <input value={song.songbookNumber} onChange={(e) => updateSong({ songbookNumber: e.target.value })} data-testid="song-number" />
             </Field>
             <Field label="Key">
               <input value={song.key} onChange={(e) => updateSong({ key: e.target.value })} />
@@ -431,19 +519,21 @@ function SongEditor({
   );
 }
 
-function ExportDialog({ onClose, selectedId }: { onClose: () => void; selectedId: string | null }) {
+function ExportDialog({ onClose, selectedId, songbook, songbookIds }: { onClose: () => void; selectedId: string | null; songbook: string; songbookIds: string[] }) {
   const { call, toast } = useStore();
-  const [format, setFormat] = useState<'json' | 'openlyrics' | 'text'>('json');
-  const [scope, setScope] = useState<'all' | 'selected'>('all');
+  const [format, setFormat] = useState<'json' | 'openlyrics' | 'text' | 'videopsalm'>('json');
+  const [scope, setScope] = useState<'all' | 'selected' | 'songbook'>(songbook ? 'songbook' : 'all');
   const run = async () => {
-    const isFile = format === 'json';
+    const isFile = format === 'json' || format === 'videopsalm';
+    const base = scope === 'songbook' && songbook ? songbook : 'FountainVideo songs';
     const target = await call('dialog.saveFile', {
       title: isFile ? 'Export songs' : 'Choose a name for the export folder',
-      defaultName: isFile ? 'FountainVideo songs.json' : format === 'openlyrics' ? 'FountainVideo songs (OpenLyrics)' : 'FountainVideo songs (text)',
-      filters: isFile ? [{ name: 'FountainVideo songs', extensions: ['json'] }] : [{ name: 'Folder', extensions: ['*'] }],
+      defaultName: isFile ? `${base}${format === 'videopsalm' ? ' (VideoPsalm)' : ''}.json` : format === 'openlyrics' ? `${base} (OpenLyrics)` : `${base} (text)`,
+      filters: isFile ? [{ name: format === 'videopsalm' ? 'VideoPsalm songbook' : 'FountainVideo songs', extensions: ['json'] }] : [{ name: 'Folder', extensions: ['*'] }],
     });
     if (!target) return;
-    const result = await call('songs.export', { ids: scope === 'selected' && selectedId ? [selectedId] : null, path: target, format });
+    const ids = scope === 'selected' && selectedId ? [selectedId] : scope === 'songbook' ? songbookIds : null;
+    const result = await call('songs.export', { ids, path: target, format, songbookName: scope === 'songbook' ? songbook : undefined });
     toast('success', `${result.count} song${result.count === 1 ? '' : 's'} exported to ${result.path}`);
     onClose();
   };
@@ -468,11 +558,13 @@ function ExportDialog({ onClose, selectedId }: { onClose: () => void; selectedId
             <option value="json">FountainVideo JSON — one file, everything kept (recommended)</option>
             <option value="openlyrics">OpenLyrics XML — one file per song (OpenLP and others)</option>
             <option value="text">Plain text — one file per song</option>
+            <option value="videopsalm">VideoPsalm songbook — one file to open in VideoPsalm</option>
           </select>
         </Field>
         <Field label="Songs" wide>
           <select value={scope} onChange={(e) => setScope(e.target.value as typeof scope)}>
             <option value="all">All songs</option>
+            {songbook && <option value="songbook">The songbook “{songbook}” ({songbookIds.length} songs)</option>}
             <option value="selected" disabled={!selectedId}>
               Only the selected song
             </option>
@@ -520,6 +612,38 @@ function PasteDialog({ onClose, onImported }: { onClose: () => void; onImported:
           <textarea rows={14} value={text} onChange={(e) => setText(e.target.value)} />
         </Field>
       </div>
+    </Modal>
+  );
+}
+
+function RenameSongbookDialog({ name, onClose, onRenamed }: { name: string; onClose: () => void; onRenamed: (to: string) => void }) {
+  const { call, toast } = useStore();
+  const [value, setValue] = useState(name);
+  const run = async () => {
+    const to = value.trim();
+    if (!to || to === name) return onClose();
+    const { count } = await call('songs.renameSongbook', { from: name, to });
+    toast('success', `Songbook renamed (${count} song${count === 1 ? '' : 's'})`);
+    onRenamed(to);
+  };
+  return (
+    <Modal
+      title="Rename songbook"
+      onClose={onClose}
+      footer={
+        <>
+          <button className="btn" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="btn btn-primary" onClick={() => void run()}>
+            Rename
+          </button>
+        </>
+      }
+    >
+      <Field label="Songbook name">
+        <input autoFocus value={value} onChange={(e) => setValue(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void run()} />
+      </Field>
     </Modal>
   );
 }

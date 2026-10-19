@@ -4,6 +4,8 @@
 
 ### Lyrics text (used in the editor, `.txt` import/export and "Paste")
 
+`Songbook:` / `Recueil:` and `Number:` / `Numéro:` lines are also read and written.
+
 ```
 Title: Amazing Grace
 Author: John Newton
@@ -90,6 +92,51 @@ Complete export/import, used for exchange between computers.
 
 **Export**
 * One file per song.
+
+### VideoPsalm songbooks (`.json`, `.vpc`)
+
+**Where to find them:** VideoPsalm keeps songbooks in `C:\Users\Public\Documents\VideoPsalm\SongBooks`. In VideoPsalm, *Options → Explore* opens the folder. A `.ignore` file is a songbook VideoPsalm has deleted; rename it to `.json` to import it.
+
+**Syntax:** VideoPsalm writes relaxed JSON:
+* unquoted keys,
+* line breaks inside strings,
+* a UTF-8 byte order mark.
+
+FountainVideo converts it to strict JSON before reading. UTF-16 and Windows-1252 files are also decoded.
+
+```
+{Abbreviation:"JEM",Text:"J'aime l'Éternel",Songs:[
+  {ID:12,Text:"Titre",Author:"…",Composer:"…",Copyright:"…",CCLI:"…",
+   Theme:"Louange
+Adoration",Memo1:"…",Alias:["…"],
+   Verses:[{Text:"Ligne 1
+Ligne 2"},{Text:"…"}]}]}
+```
+
+**Fields read**
+
+| VideoPsalm | FountainVideo |
+| --- | --- |
+| `Text` (top level), else `Abbreviation`, else the file name | Songbook name |
+| `ID` | Number in the songbook |
+| `Text` | Title |
+| `Author`, `Composer` | Author(s) |
+| `Copyright` | Copyright (line breaks become spaces) |
+| `CCLI` | CCLI number |
+| `Theme` (one per line) | Categories |
+| `Memo1`–`Memo3`, `Alias`, `Reference` | Notes |
+| `Verses[].Text` | Sections |
+
+**Verses:** VideoPsalm stores no verse type, so FountainVideo infers it.
+* A first line such as `Refrain`, `Chorus`, `Chœur`, `Pont`, `Bridge`, `Pré-refrain`, `Tag` or `Fin` names the section and is removed from the text.
+* A verse whose text repeats an earlier verse is a repeated chorus.
+* All other verses are numbered `Verse 1`, `Verse 2`, …
+* When something repeats, the original order is saved as the "VideoPsalm order" arrangement and made the default, so the song projects as it did in VideoPsalm.
+* `[chords]` and `<formatting>` tags are removed. Verses without text are skipped.
+
+**Re-importing:** a song with the same songbook, number and title is updated in place (its id, chosen theme and other settings are kept).
+
+**Export:** FountainVideo writes strict JSON with the same fields (`Abbreviation`, `Text`, `Songs[].ID/Text/Author/Copyright/CCLI/Theme/Memo1/Verses`). Verses are written in the order of the song's default arrangement.
 
 ### ChordPro (`.cho`, `.chordpro`, `.pro`, `.crd`)
 

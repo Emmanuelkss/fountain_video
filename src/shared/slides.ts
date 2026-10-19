@@ -28,7 +28,7 @@ function base(theme: Theme): Omit<Slide, 'kind' | 'label' | 'group'> {
 }
 
 function songFooter(song: Song): string {
-  const parts = [song.title];
+  const parts = [song.songbook && song.songbookNumber ? `${song.songbook} ${song.songbookNumber} — ${song.title}` : song.title];
   if (song.author) parts.push(song.author);
   if (song.copyright) parts.push(`© ${song.copyright.replace(/^©\s*/, '')}`);
   if (song.ccli) parts.push(`CCLI ${song.ccli}`);

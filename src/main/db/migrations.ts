@@ -106,6 +106,17 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    version: 2,
+    description: 'Songbooks (recueils): songbook name and number per song',
+    up(db) {
+      db.exec(`
+        ALTER TABLE songs ADD COLUMN songbook TEXT NOT NULL DEFAULT '';
+        ALTER TABLE songs ADD COLUMN songbook_number TEXT NOT NULL DEFAULT '';
+        CREATE INDEX songs_songbook ON songs(songbook);
+      `);
+    },
+  },
 ];
 
 export const LATEST_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

@@ -81,6 +81,8 @@ export function validateSong(input: Song): Song {
     key: text(input.key, 12, 'Key').trim(),
     notes: text(input.notes, 5000, 'Notes'),
     categories,
+    songbook: text(input.songbook, 100, 'Songbook').trim(),
+    songbookNumber: text(input.songbookNumber, 20, 'Song number').trim(),
     sections,
     arrangements,
     defaultArrangementId: arrangements.some((a) => a.id === input.defaultArrangementId) ? input.defaultArrangementId : null,

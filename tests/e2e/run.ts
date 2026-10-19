@@ -109,9 +109,20 @@ async function main() {
     await operator.getByTestId('song-save').click();
     await operator.getByText(`“${s.title}” saved`).waitFor();
   }
+  // Import a VideoPsalm songbook and browse it like a hymnal.
+  harness.queueOpenFiles([path.join(__dirname, '..', 'fixtures', 'videopsalm-sample.json')]);
+  await operator.getByRole('button', { name: 'Import…' }).click();
+  await operator.getByText('2 songs imported, 1 skipped').waitFor();
+  await operator.getByTestId('songbook-filter').selectOption({ label: "J'aime l'Éternel (2)" });
+  await operator.locator('.list-item', { hasText: 'Jésus tu es là' }).locator('.song-number', { hasText: '2' }).waitFor();
+  await operator.locator('.list-item', { hasText: "Grand est l'Éternel" }).click();
+  await operator.waitForFunction(() => (document.querySelector('[data-testid="song-number"]') as HTMLInputElement | null)?.value === '1');
+  await shot(operator, 'videopsalm-songbook');
+  await operator.getByTestId('songbook-filter').selectOption({ label: 'All songbooks' });
   await operator.getByTestId('song-search').fill('jesus');
-  await operator.locator('.list-item', { hasText: 'Jésus, tu es là' }).waitFor();
-  await operator.locator('.list-item', { hasText: 'Jésus, tu es là' }).click();
+  await operator.locator('.list-item').first().waitFor();
+  assert.equal(await operator.locator('.list-item').count(), 3, 'typed song, VideoPsalm song and À toi la gloire (lyrics mention Jésus)');
+  await operator.locator('.list-item', { has: operator.locator('strong', { hasText: /^Jésus, tu es là$/ }) }).click();
   await shot(operator, 'song-editor');
 
   // 3. Import media and a Bible translation.
@@ -142,7 +153,7 @@ async function main() {
   };
   // Song through the Ctrl+F search shortcut, Enter adds it.
   await operator.keyboard.press('Control+f');
-  await operator.getByPlaceholder('Search by title, words or author…').fill('great is the lord');
+  await operator.getByPlaceholder('Search by title, words, author or number…').fill('great is the lord');
   await operator.keyboard.press('Enter');
   await operator.locator('.service-item', { hasText: 'Great Is the Lord Test' }).waitFor();
   // Bible passage

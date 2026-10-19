@@ -505,3 +505,15 @@ textarea.lyrics { font-family: Consolas, "Cascadia Mono", monospace; font-size: 
   .song-editor, .theme-editor { grid-template-columns: 1fr; }
   .bible-layout { grid-template-columns: 220px minmax(0, 1fr) 240px; }
 }
+
+.song-number {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 5px;
+  border-radius: 3px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  vertical-align: 1px;
+}
