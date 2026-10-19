@@ -1,0 +1,76 @@
+{
+  "name": "fountainvideo",
+  "productName": "FountainVideo",
+  "version": "1.0.0",
+  "description": "Offline church presentation software: songs, Bible, service planning and dual-screen projection.",
+  "author": "FountainVideo",
+  "license": "MIT",
+  "private": true,
+  "main": "dist/main/main.js",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "start": "npm run build && electron .",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test --import tsx \"tests/*.test.ts\"",
+    "test:e2e": "node scripts/build.mjs --harness && node --import tsx tests/e2e/run.ts",
+    "dist": "npm run build && electron-builder --win nsis portable --x64",
+    "dist:dir": "npm run build && electron-builder --win dir --x64",
+    "test:all": "npm test && npm run test:e2e",
+    "test:electron": "npm run build && node --import tsx tests/electron/smoke.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@types/ws": "^8.5.0",
+    "electron": "^41.0.0",
+    "electron-builder": "^26.0.0",
+    "esbuild": "^0.25.0",
+    "playwright": "^1.56.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "sax": "^1.4.1",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "ws": "^8.18.0"
+  },
+  "build": {
+    "appId": "org.fountainvideo.app",
+    "productName": "FountainVideo",
+    "copyright": "FountainVideo",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json",
+      "!dist/harness/**"
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "artifactName": "${productName}-${version}-${arch}-${target}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "FountainVideo",
+      "deleteAppDataOnUninstall": false,
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "${productName}-Portable-${version}.${ext}"
+    }
+  },
+  "dependencies": {},
+  "engines": {
+    "node": ">=22.12"
+  }
+}
