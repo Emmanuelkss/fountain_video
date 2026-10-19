@@ -1,0 +1,45 @@
+name: Build & test
+
+on:
+  push:
+    branches: [main, dev]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Install
+        run: npm install
+      - name: Type check
+        run: npm run typecheck
+      - name: Unit & integration tests
+        run: node --test --import tsx --test-reporter=spec --test-reporter-destination=stdout --test-reporter=./scripts/gh-annotations.mjs --test-reporter-destination=stdout "tests/*.test.ts"
+      - name: End-to-end tests (operator UI + projector in Chromium)
+        run: |
+          npx playwright install chromium
+          npm run test:e2e
+      - name: Electron smoke test (real main process, projector window, fvmedia protocol)
+        run: npm run test:electron
+      - name: Build Windows installer
+        run: npm run dist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload installer
+        uses: actions/upload-artifact@v5
+        with:
+          name: FountainVideo-windows
+          path: |
+            release/*.exe
+          if-no-files-found: error
+      - name: Attach to GitHub release (tags v*)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*.exe
