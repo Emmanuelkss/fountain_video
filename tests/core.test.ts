@@ -43,6 +43,8 @@ function makeSong(title: string, lyrics: string): Song {
     key: '',
     notes: '',
     categories: ['Worship'],
+    songbook: '',
+    songbookNumber: '',
     sections: parseLyrics(lyrics),
     arrangements: [],
     defaultArrangementId: null,

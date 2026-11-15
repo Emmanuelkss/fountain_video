@@ -45,6 +45,10 @@ export interface Song {
   key: string;
   notes: string;
   categories: string[];
+  /** Songbook ("recueil") the song belongs to, e.g. "JEM" or "Cantiques". Empty = none. */
+  songbook: string;
+  /** Number of the song in its songbook, e.g. "123" or "45a". */
+  songbookNumber: string;
   sections: SongSection[];
   arrangements: SongArrangement[];
   /** Arrangement used when none is chosen in a service item. Empty = section order. */
@@ -59,9 +63,16 @@ export interface SongSummary {
   title: string;
   author: string;
   categories: string[];
+  songbook: string;
+  songbookNumber: string;
   /** First lyric line, shown in search results. */
   firstLine: string;
   updatedAt: string;
+}
+
+export interface SongbookSummary {
+  name: string;
+  count: number;
 }
 
 // ---------------------------------------------------------------- Bible

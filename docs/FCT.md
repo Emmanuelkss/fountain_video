@@ -1,6 +1,6 @@
 # FCT — New features (FountainVideo 1.0.0)
 
-**Branch:** `dev` · **Date:** 2026-10-18 · **Scope:** first version of the application. Every feature below is new.
+**Branch:** `dev` · **Dates:** 2026-10-18 (1.0.0), 2026-10-19 (songbooks and VideoPsalm import: S-11 to S-13) · **Scope:** every feature below is new.
 
 **Legend for the "Verified" column**
 - **U**: unit/integration test (`npm test`)
@@ -24,6 +24,10 @@
 | S-08 | Export | All songs or the selected one, as JSON (complete), OpenLyrics or text. | **Songs → Export…**. | `songFormats.ts`, `core.ts` | U |
 | S-09 | Section shortcuts | While a song is live, keys jump to sections: 1–9 for verses, C chorus (next chorus on repeat), B bridge, P, T, I, E. | Press the key during the service. | `shared/live.ts`, `shared/shortcuts.ts` | U, E2E |
 | S-10 | Delete protection | Warns which services use a song before deleting it. Items whose song is gone show a warning. | Delete a song that is in a service. | `core.ts` (`songs.usage`) | U |
+
+| S-11 | Songbooks (recueils) | Each song can belong to a songbook with a number. Songs are browsed by songbook in number order, found by number (`12` or `JEM 12`), and the footer shows "JEM 12 — Title". Whole songbooks can be renamed or deleted. | Song editor → *Songbook* and *Number*; songbook list above the songs; ✎ / 🗑 next to it. | `songsRepo.ts`, `SongsView.tsx`, migration v2 in `migrations.ts` | U, E2E |
+| S-12 | VideoPsalm import | Imports VideoPsalm songbooks (`.json`/`.vpc`, relaxed JSON, UTF-8/UTF-16/Windows-1252), several at once. Keeps songbook name, numbers, titles, authors, copyright, CCLI, themes and memos. Removes chords and formatting tags. Repeated verses become the chorus, and the VideoPsalm order is kept as the default arrangement. Re-importing updates songs instead of duplicating them. | **Songs → Import…** → choose files in `C:\Users\Public\Documents\VideoPsalm\SongBooks`. | `main/importers/videopsalm.ts`, `core.ts` (`importSong`) | U (sample songbook), E2E, **Manual** (your real songbooks) |
+| S-13 | VideoPsalm export | Saves all songs, one songbook or one song as a VideoPsalm songbook file. | **Songs → Export… → VideoPsalm songbook**. | `videopsalm.ts` (`exportVideoPsalm`) | U |
 
 ## 2. Service planning
 
@@ -134,7 +138,7 @@ The **Build & test** workflow ran on GitHub Actions, on Windows, on 2026-10-18 (
 | Suite | Result |
 | --- | --- |
 | `npm run typecheck` (official Electron and React typings) | Pass |
-| `npm test` (unit + integration on real SQLite) | 37 / 37 pass |
+| `npm test` (unit + integration on real SQLite) | 44 / 44 pass (incl. VideoPsalm sample songbook and v1→v2 database upgrade) |
 | `npm run test:e2e` (operator + projector pages in Chromium, real core) | Full church-service scenario passes |
 | `npm run test:electron` (real Electron app: projector window, `fvmedia://` image, restart persistence) | Pass |
 | `npm run dist` | Installer + portable exe built and uploaded as the `FountainVideo-windows` artifact |

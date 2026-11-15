@@ -10,29 +10,43 @@ export function SongPicker({ onPick, onClose }: { onPick: (items: ServiceItem[],
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
   const [results, setResults] = useState<{ query: string; list: SongSummary[] } | null>(null);
+  // Refs hold the latest values so a fast Enter never uses a stale render.
+  const queryRef = useRef(query);
+  const resultsRef = useRef(results);
+  const activeRef = useRef(active);
+  queryRef.current = query;
+  activeRef.current = active;
   // Enter pressed before the results for the latest typing arrived: pick once they do.
   const pendingEnter = useRef<boolean | null>(null);
+  const pick = (song: SongSummary | undefined, show: boolean) => song && onPick([songItem(song)], show);
+  const pickRef = useRef(pick);
+  pickRef.current = pick;
   useEffect(() => {
     let cancelled = false;
     void api()
       .invoke('songs.list', { query })
-      .then((list) => !cancelled && setResults({ query, list }));
+      .then((list) => {
+        if (cancelled) return;
+        const next = { query, list };
+        resultsRef.current = next;
+        setResults(next);
+        if (pendingEnter.current !== null && queryRef.current === query) {
+          const show = pendingEnter.current;
+          pendingEnter.current = null;
+          pickRef.current(list[0], show);
+        }
+      });
     return () => {
       cancelled = true;
     };
   }, [query]);
   const list = results?.list ?? [];
-  const fresh = results?.query === query;
   useEffect(() => setActive(0), [query]);
-  const pick = (song: SongSummary | undefined, show: boolean) => song && onPick([songItem(song)], show);
-  useEffect(() => {
-    if (fresh && pendingEnter.current !== null) {
-      const show = pendingEnter.current;
-      pendingEnter.current = null;
-      pick(list[0], show);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fresh, list]);
+  const pressEnter = (show: boolean) => {
+    const latest = resultsRef.current;
+    if (latest && latest.query === queryRef.current) pickRef.current(latest.list[activeRef.current] ?? latest.list[0], show);
+    else pendingEnter.current = show;
+  };
   return (
     <Modal title="Add a song" onClose={onClose} wide>
       <div className="picker">
@@ -40,7 +54,7 @@ export function SongPicker({ onPick, onClose }: { onPick: (items: ServiceItem[],
           <Icon name="search" />
           <input
             autoFocus
-            placeholder="Search by title, words or author…"
+            placeholder="Search by title, words, author or number…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
@@ -52,8 +66,7 @@ export function SongPicker({ onPick, onClose }: { onPick: (items: ServiceItem[],
                 setActive((a) => Math.max(0, a - 1));
               } else if (e.key === 'Enter') {
                 e.preventDefault();
-                if (fresh) pick(list[active], e.ctrlKey);
-                else pendingEnter.current = e.ctrlKey;
+                pressEnter(e.ctrlKey);
               }
             }}
           />
@@ -71,7 +84,10 @@ export function SongPicker({ onPick, onClose }: { onPick: (items: ServiceItem[],
               onDoubleClick={() => pick(s, false)}
             >
               <div className="picker-main">
-                <strong>{s.title}</strong>
+                <strong>
+                  {s.songbookNumber && <span className="song-number">{`${s.songbook} ${s.songbookNumber}`}</span>}
+                  {s.title}
+                </strong>
                 <span className="muted">{s.firstLine}</span>
               </div>
               <div className="picker-actions">

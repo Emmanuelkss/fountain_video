@@ -182,6 +182,8 @@ function seedSong(s: SeedSong): Song {
     key: '',
     notes: '',
     categories: s.categories,
+    songbook: '',
+    songbookNumber: '',
     sections,
     arrangements: arrangement ? [arrangement] : [],
     defaultArrangementId: arrangement?.id ?? null,
