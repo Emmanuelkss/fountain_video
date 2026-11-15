@@ -9,9 +9,10 @@ import type { Song, SongArrangement, SongSection } from '../../shared/types';
 import { classifyHeader, parseLyrics, serializeLyrics } from '../../shared/lyrics';
 import { newId, nowIso } from '../../shared/util';
 import { escapeXml, find, findAll, parseXmlTree, textOf, type XmlNode } from './xml';
+import { looksLikeVideoPsalm, parseVideoPsalm } from './videopsalm';
 
 export const SONG_JSON_FORMAT = 'fountainvideo-songs';
-export const SONG_IMPORT_EXTENSIONS = ['json', 'xml', 'txt', 'cho', 'chordpro', 'pro', 'crd'];
+export const SONG_IMPORT_EXTENSIONS = ['json', 'vpc', 'xml', 'txt', 'cho', 'chordpro', 'pro', 'crd'];
 
 export function emptySong(title = ''): Song {
   const now = nowIso();
@@ -24,6 +25,8 @@ export function emptySong(title = ''): Song {
     key: '',
     notes: '',
     categories: [],
+    songbook: '',
+    songbookNumber: '',
     sections: [],
     arrangements: [],
     defaultArrangementId: null,
@@ -45,7 +48,11 @@ function baseName(fileName: string): string {
 /** Parses the content of one file into song drafts (not yet validated). */
 export function parseSongFile(fileName: string, content: string): Song[] {
   const text = content.replace(/^﻿/, '');
-  switch (extension(fileName)) {
+  const ext = extension(fileName);
+  if (ext === 'vpc' || ((ext === 'json' || ext === '') && looksLikeVideoPsalm(text))) {
+    return parseVideoPsalm(text, baseName(fileName)).songs;
+  }
+  switch (ext) {
     case 'json':
       return parseSongJson(text);
     case 'xml':
@@ -78,6 +85,8 @@ export function parseSongJson(text: string): Song[] {
       song.sections = parseLyrics(r.lyrics);
     }
     song.categories = Array.isArray(r.categories) ? r.categories.map(String) : [];
+    song.songbook = typeof r.songbook === 'string' ? r.songbook : '';
+    song.songbookNumber = r.songbookNumber === undefined || r.songbookNumber === null ? '' : String(r.songbookNumber);
     song.arrangements = Array.isArray(r.arrangements) ? r.arrangements : [];
     return song;
   });
@@ -89,7 +98,7 @@ export function exportSongJson(songs: Song[]): string {
 
 // ------------------------------------------------------------------ Plain text
 
-const META = /^\s*(title|titre|author|auteur|copyright|ccli|key|tonalit[eé]|categories|cat[eé]gories)\s*:\s*(.*)$/i;
+const META = /^\s*(title|titre|author|auteur|copyright|ccli|key|tonalit[eé]|categories|cat[eé]gories|songbook|recueil|number|num[eé]ro)\s*:\s*(.*)$/i;
 
 export function parsePlainText(text: string, fallbackTitle: string): Song {
   const song = emptySong(fallbackTitle);
@@ -107,6 +116,8 @@ export function parsePlainText(text: string, fallbackTitle: string): Song {
     else if (key === 'copyright') song.copyright = value;
     else if (key === 'ccli') song.ccli = value;
     else if (key === 'key' || key.startsWith('tonalit')) song.key = value;
+    else if (key === 'songbook' || key === 'recueil') song.songbook = value;
+    else if (key === 'number' || key.startsWith('num')) song.songbookNumber = value;
     else song.categories = value.split(/[,;]/).map((c) => c.trim()).filter(Boolean);
     i += 1;
   }
@@ -129,6 +140,8 @@ export function exportPlainText(song: Song): string {
   if (song.copyright) meta.push(`Copyright: ${song.copyright}`);
   if (song.ccli) meta.push(`CCLI: ${song.ccli}`);
   if (song.key) meta.push(`Key: ${song.key}`);
+  if (song.songbook) meta.push(`Songbook: ${song.songbook}`);
+  if (song.songbookNumber) meta.push(`Number: ${song.songbookNumber}`);
   if (song.categories.length) meta.push(`Categories: ${song.categories.join(', ')}`);
   return `${meta.join('\n')}\n\n${serializeLyrics(song.sections)}\n`;
 }
@@ -201,6 +214,11 @@ export function parseOpenLyrics(xml: string, fallbackTitle: string): Song {
     song.ccli = textOf(find(props, 'ccliNo')).trim();
     song.key = textOf(find(props, 'key')).trim();
     song.categories = findAll(props, 'theme').map((t) => textOf(t).trim()).filter(Boolean);
+    const book = find(props, 'songbook');
+    if (book) {
+      song.songbook = (book.attrs.name ?? '').trim();
+      song.songbookNumber = (book.attrs.entry ?? '').trim();
+    }
   }
   const lyrics = find(songNode, 'lyrics');
   const sections: SongSection[] = [];
@@ -292,6 +310,9 @@ export function exportOpenLyrics(song: Song): string {
         .map((a) => `        <author>${escapeXml(a)}</author>`)
         .join('\n')}\n      </authors>\n`
     : '';
+  const songbooks = song.songbook
+    ? `      <songbooks>\n        <songbook name="${escapeXml(song.songbook)}"${song.songbookNumber ? ` entry="${escapeXml(song.songbookNumber)}"` : ''}/>\n      </songbooks>\n`
+    : '';
   const themes = song.categories.length
     ? `      <themes>\n${song.categories.map((c) => `        <theme>${escapeXml(c)}</theme>`).join('\n')}\n      </themes>\n`
     : '';
@@ -301,7 +322,7 @@ export function exportOpenLyrics(song: Song): string {
       <titles>
         <title>${escapeXml(song.title)}</title>
       </titles>
-${authors}${song.copyright ? `      <copyright>${escapeXml(song.copyright)}</copyright>\n` : ''}${song.ccli ? `      <ccliNo>${escapeXml(song.ccli)}</ccliNo>\n` : ''}${song.key ? `      <key>${escapeXml(song.key)}</key>\n` : ''}${verseOrder ? `      <verseOrder>${verseOrder}</verseOrder>\n` : ''}${themes}  </properties>
+${authors}${song.copyright ? `      <copyright>${escapeXml(song.copyright)}</copyright>\n` : ''}${song.ccli ? `      <ccliNo>${escapeXml(song.ccli)}</ccliNo>\n` : ''}${song.key ? `      <key>${escapeXml(song.key)}</key>\n` : ''}${verseOrder ? `      <verseOrder>${verseOrder}</verseOrder>\n` : ''}${songbooks}${themes}  </properties>
   <lyrics>
 ${verses}
   </lyrics>

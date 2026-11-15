@@ -154,9 +154,18 @@ Was blind, but now I see.
 - **Headers:** English and French names are recognised (Verse/Couplet, Chorus/Refrain, Bridge/Pont, Pre-Chorus/Pré-refrain, Tag, Intro, Ending/Fin).
 - **Arrangements** set the section order, for example `V1 C V2 C B C`. Each service item can use a different arrangement.
 - **Search** covers titles, lyrics and authors, and ignores accents ("eternel" finds "Éternel").
-- **Import:** FountainVideo JSON, OpenLyrics XML (OpenLP and others), plain text and ChordPro (chords are removed).
+- **Songbooks (recueils):** each song can belong to a songbook with a number, as in VideoPsalm.
+  - Pick a songbook in the list to browse its songs by number.
+  - Type a number (`12`, or `JEM 12`) in any song search to find it.
+  - Rename or delete a whole songbook with the buttons next to the songbook list.
+  - The projected footer shows the reference, for example "JEM 12 — Title".
+- **Import from VideoPsalm:** **Songs → Import…**, then choose your songbook files (`.json` or `.vpc`, usually in `C:\Users\Public\Documents\VideoPsalm\SongBooks`). You can select several songbooks at once.
+  - Each VideoPsalm songbook becomes a FountainVideo songbook, keeping song numbers, titles, authors, copyright, CCLI, themes (as categories) and memos (as notes).
+  - Chords and formatting tags are removed. A verse repeated in VideoPsalm becomes the chorus, and the original order is kept as the song's default arrangement.
+  - Importing the same songbook again **updates** its songs instead of duplicating them, and keeps the themes you chose in FountainVideo.
+- **Other imports:** FountainVideo JSON, OpenLyrics XML (OpenLP and others), plain text and ChordPro (chords are removed).
 - **Paste** creates a song from lyrics copied from anywhere.
-- **Export:** JSON (complete), OpenLyrics or plain text. See [docs/FORMATS.md](docs/FORMATS.md).
+- **Export:** JSON (complete), OpenLyrics, plain text, or a **VideoPsalm songbook** (all songs, one songbook, or the selected song). See [docs/FORMATS.md](docs/FORMATS.md).
 
 **Bible**
 

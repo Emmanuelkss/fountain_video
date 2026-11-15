@@ -30,6 +30,8 @@ import { log } from './logger';
 import { seedFirstRun } from './seed';
 import { parseSongFile, exportSongJson, exportOpenLyrics, exportPlainText, safeFileName, parsePlainText } from './importers/songFormats';
 import { parseBibleFile } from './importers/bibleFormats';
+import { exportVideoPsalm } from './importers/videopsalm';
+import { mergeSectionIds } from '../shared/lyrics';
 import { buildItemSlides, type SlideContext } from '../shared/slides';
 import {
   applyLiveCommand,
@@ -41,7 +43,7 @@ import {
   type LiveState,
 } from '../shared/live';
 import { fallbackTheme } from '../shared/themes';
-import { displayFileName, errorMessage, newId, nowIso, UserError } from '../shared/util';
+import { decodeText, displayFileName, errorMessage, newId, nowIso, UserError } from '../shared/util';
 
 /** Everything that needs the real desktop (windows, screens, file dialogs). */
 export interface Platform {
@@ -268,7 +270,7 @@ export class AppCore {
     },
 
     // songs
-    'songs.list': ({ query, category }) => this.repos.songs.list(query ?? '', category ?? ''),
+    'songs.list': ({ query, category, songbook }) => this.repos.songs.list(query ?? '', category ?? '', songbook ?? ''),
     'songs.get': ({ id }) => this.repos.songs.get(id),
     'songs.save': (song) => {
       const saved = this.repos.songs.save(song);
@@ -298,19 +300,38 @@ export class AppCore {
       return saved;
     },
     'songs.categories': () => this.repos.songs.categories(),
+    'songs.songbooks': () => this.repos.songs.songbooks(),
+    'songs.renameSongbook': ({ from, to }) => {
+      const name = to.trim();
+      if (!name) throw new UserError('A songbook needs a name.');
+      if (name.length > 100) throw new UserError('The songbook name is too long (max 100 characters).');
+      const count = this.repos.songs.renameSongbook(from, name);
+      log.info(`Songbook "${from}" renamed to "${name}" (${count} songs)`);
+      this.changed('songs');
+      return { count };
+    },
+    'songs.deleteSongbook': ({ name }) => {
+      const ids = this.repos.songs.idsInSongbook(name);
+      this.db.transaction(() => ids.forEach((id) => this.repos.songs.delete(id)));
+      log.info(`Songbook "${name}" deleted with its ${ids.length} songs`);
+      this.changed('songs');
+      return { count: ids.length };
+    },
     'songs.usage': ({ id }) => this.repos.services.usingSong(id),
     'songs.importFiles': async ({ paths }) => {
       const report: ImportReport = { imported: 0, skipped: 0, errors: [], ids: [] };
       for (const file of paths) {
         try {
-          const content = await fs.promises.readFile(file, 'utf8');
-          for (const draft of parseSongFile(file, content)) this.importSong(draft, report);
+          const content = decodeText(await fs.promises.readFile(file));
+          const drafts = parseSongFile(file, content);
+          // One transaction per file: a 1,000-song songbook imports in a second.
+          this.db.transaction(() => drafts.forEach((draft) => this.importSong(draft, report)));
         } catch (err) {
           report.skipped += 1;
           report.errors.push(`${path.basename(file)}: ${errorMessage(err)}`);
         }
       }
-      log.info(`Song import: ${report.imported} imported, ${report.skipped} skipped`);
+      log.info(`Song import: ${report.imported} imported, ${report.updated ?? 0} updated, ${report.skipped} skipped`);
       this.changed('songs');
       return report;
     },
@@ -320,11 +341,15 @@ export class AppCore {
       this.changed('songs');
       return report;
     },
-    'songs.export': async ({ ids, path: target, format }) => {
+    'songs.export': async ({ ids, path: target, format, songbookName }) => {
       const songs = ids ? ids.map((id) => this.repos.songs.get(id)).filter((s): s is Song => Boolean(s)) : this.repos.songs.all();
       if (songs.length === 0) throw new UserError('There are no songs to export.');
       if (format === 'json') {
         await fs.promises.writeFile(target, exportSongJson(songs), 'utf8');
+      } else if (format === 'videopsalm') {
+        const name = songbookName?.trim() || songs[0]?.songbook || 'FountainVideo';
+        const sorted = songs.slice().sort((a, b) => a.songbookNumber.localeCompare(b.songbookNumber, undefined, { numeric: true }) || a.title.localeCompare(b.title));
+        await fs.promises.writeFile(target, exportVideoPsalm(name, sorted), 'utf8');
       } else {
         await fs.promises.mkdir(target, { recursive: true });
         const used = new Set<string>();
@@ -468,9 +493,24 @@ export class AppCore {
 
   private importSong(draft: Song, report: ImportReport): void {
     try {
+      // Re-importing a songbook updates its songs instead of duplicating them.
+      const existing = this.repos.songs.findExisting(draft.title, draft.songbook ?? '', draft.songbookNumber ?? '');
+      if (existing) {
+        const saved = this.repos.songs.save({
+          ...draft,
+          id: existing.id,
+          sections: mergeSectionIds(existing.sections, draft.sections),
+          themeId: existing.themeId,
+          notes: draft.notes || existing.notes,
+          createdAt: existing.createdAt,
+        });
+        report.updated = (report.updated ?? 0) + 1;
+        report.ids.push(saved.id);
+        return;
+      }
       const duplicate = this.repos.songs.findByTitle(draft.title);
       const song = { ...draft, id: newId() };
-      if (duplicate) song.title = `${draft.title} (imported)`;
+      if (duplicate && !draft.songbook) song.title = `${draft.title} (imported)`;
       const saved = this.repos.songs.save(song);
       report.imported += 1;
       report.ids.push(saved.id);

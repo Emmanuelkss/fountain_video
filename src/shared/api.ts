@@ -16,6 +16,7 @@ import type {
   ServiceSummary,
   Song,
   SongSummary,
+  SongbookSummary,
   Theme,
 } from './types';
 import type { Deck, LiveCommand, LiveState } from './live';
@@ -25,6 +26,8 @@ export interface ImportReport {
   skipped: number;
   errors: string[];
   ids: string[];
+  /** Songs that already existed (same songbook, number and title) and were updated. */
+  updated?: number;
 }
 
 export interface BackupInfo {
@@ -61,16 +64,19 @@ export interface Commands {
   'settings.get': { in: void; out: AppSettings };
   'settings.update': { in: Partial<AppSettings>; out: AppSettings };
 
-  'songs.list': { in: { query?: string; category?: string }; out: SongSummary[] };
+  'songs.list': { in: { query?: string; category?: string; songbook?: string }; out: SongSummary[] };
   'songs.get': { in: { id: string }; out: Song | null };
   'songs.save': { in: Song; out: Song };
   'songs.delete': { in: { id: string }; out: { usedIn: string[] } };
   'songs.duplicate': { in: { id: string }; out: Song };
   'songs.categories': { in: void; out: string[] };
+  'songs.songbooks': { in: void; out: SongbookSummary[] };
+  'songs.renameSongbook': { in: { from: string; to: string }; out: { count: number } };
+  'songs.deleteSongbook': { in: { name: string }; out: { count: number } };
   'songs.usage': { in: { id: string }; out: string[] };
   'songs.importFiles': { in: { paths: string[] }; out: ImportReport };
   'songs.importText': { in: { text: string; title?: string }; out: ImportReport };
-  'songs.export': { in: { ids: string[] | null; path: string; format: 'json' | 'openlyrics' | 'text' }; out: { count: number; path: string } };
+  'songs.export': { in: { ids: string[] | null; path: string; format: 'json' | 'openlyrics' | 'text' | 'videopsalm'; songbookName?: string }; out: { count: number; path: string } };
 
   'services.list': { in: { templates?: boolean }; out: ServiceSummary[] };
   'services.get': { in: { id: string }; out: Service | null };
